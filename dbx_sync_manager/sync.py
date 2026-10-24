@@ -1,9 +1,10 @@
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
-from dbx_sync_manager.tree import parent
+from dbx_sync_manager.tree import clean, parent
 
 
 def local_root(info_file=Path.home() / ".dropbox/info.json"):
@@ -16,7 +17,7 @@ def parse_exclude_list(output, cwd, root):
         return set()
     lines = output.splitlines()
     if not lines or lines[0].strip() != "Excluded:":
-        raise RuntimeError(output)
+        raise RuntimeError(clean(output))
     result = set()
     for line in lines[1:]:
         if not line.strip():
@@ -28,8 +29,12 @@ def parse_exclude_list(output, cwd, root):
 
 
 def _run(*args, cwd=None):
+    # absolute PATH entries only: a relative one resolves inside cwd, the team-writable Dropbox folder
+    cli = shutil.which("dropbox-cli", path=os.pathsep.join(p for p in os.get_exec_path() if os.path.isabs(p)))
+    if cli is None:
+        raise FileNotFoundError("dropbox-cli not found")
     try:
-        p = subprocess.run(["dropbox-cli", *args], capture_output=True, text=True, cwd=cwd, timeout=30)
+        p = subprocess.run([cli, *args], capture_output=True, text=True, cwd=cwd, timeout=30)
     except subprocess.TimeoutExpired:
         return "dropbox-cli timed out"
     return (p.stdout + p.stderr).strip()
@@ -55,12 +60,16 @@ def has_excluded_inside(path, excluded):
 
 def set_excluded(root, path_display, exclude):
     # dropbox-cli reports errors on stdout with exit 0; callers verify via exclude_list()
-    return _run("exclude", "add" if exclude else "remove", str(root) + path_display)
+    path = str(root) + path_display
+    # names are team-controlled: refuse `.`, `..`, empty parts and control chars so the target stays inside root
+    if not path_display.startswith("/") or os.path.normpath(path) != path or clean(path) != path:
+        return f"refused unsafe path: {clean(path_display)}"
+    return clean(_run("exclude", "add" if exclude else "remove", path))
 
 
 def status():
     try:
-        return _run("status").splitlines()[0]
+        return clean(_run("status").splitlines()[0])
     except FileNotFoundError:
         return "dropbox-cli not found"
     except IndexError:

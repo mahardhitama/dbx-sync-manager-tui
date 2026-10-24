@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import time
 from pathlib import Path
 
@@ -11,6 +12,11 @@ CACHE_FILE = Path.home() / ".cache/dbx-sync-manager/tree.json"
 
 def parent(path):
     return path.rsplit("/", 1)[0]
+
+
+def clean(s):
+    """Show control chars as escapes: names and daemon text are team-controlled and reach the terminal and dropbox-cli."""
+    return re.sub(r"[\x00-\x1f\x7f-\x9f]", lambda m: m[0].encode("unicode_escape").decode(), s)
 
 
 class Tree:
@@ -47,7 +53,7 @@ class Tree:
         return sorted(k for k in self.folders if k and parent(k) == path)
 
     def name(self, path):
-        return self.folders[path]["name"]
+        return clean(self.folders[path]["name"])
 
     def size(self, path):
         if self._sizes is None:
@@ -59,9 +65,12 @@ class Tree:
         return self._sizes[path]
 
     def save(self, file=CACHE_FILE):
-        file.parent.mkdir(parents=True, exist_ok=True)
+        file.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         tmp = file.with_suffix(".tmp")
-        tmp.write_text(json.dumps({"cursor": self.cursor, "crawled_at": self.crawled_at, "folders": self.folders}))
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        os.fchmod(fd, 0o600)  # a leftover tmp keeps its old mode otherwise
+        with os.fdopen(fd, "w") as f:
+            f.write(json.dumps({"cursor": self.cursor, "crawled_at": self.crawled_at, "folders": self.folders}))
         os.replace(tmp, file)
 
     @classmethod

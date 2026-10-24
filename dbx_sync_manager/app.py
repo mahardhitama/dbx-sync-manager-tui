@@ -51,23 +51,27 @@ def synced_size(tree, excluded):
 
 class ConfirmScreen(ModalScreen[bool]):
     BINDINGS = [("y", "answer(True)"), ("n", "answer(False)"), ("escape", "answer(False)")]
+    # a "y" this soon arrived with the key that opened the dialog (e.g. a forged terminal reply), not from the user
+    ARM_DELAY = 0.3
 
     def __init__(self, message):
         super().__init__()
-        self.message = message
+        self.message, self.opened = message, time.monotonic()
 
     def compose(self):
         yield Static(Text(f"{self.message}  [y/n]"), id="dialog")
 
     def action_answer(self, ok):
-        self.dismiss(ok)
+        if not ok or time.monotonic() - self.opened >= self.ARM_DELAY:
+            self.dismiss(ok)
 
 
 class DbxApp(App):
     CSS = """
     #path { height: 1; padding: 0 1; background: $panel; }
     #cols { height: 1fr; }
-    #cols OptionList { width: 1fr; height: 100%; border: none; }
+    #cols OptionList { width: 1fr; height: 100%; border: round ansi_bright_black; }
+    #cols #current { border: round $primary; }
     #current, #preview { width: 2fr; }
     #progress { display: none; height: 1fr; content-align: center middle; }
     #status { height: 1; padding: 0 1; background: $panel; }

@@ -49,6 +49,7 @@ async def test_toggle_include_confirms_and_calls(daemon, tmp_path):
     async with app.run_test() as pilot:
         await pilot.press("space")
         assert isinstance(app.screen, ConfirmScreen)
+        await pilot.pause(ConfirmScreen.ARM_DELAY)
         await pilot.press("y")
         await pilot.pause()
     assert daemon["calls"] == [("/A", False)]
@@ -60,9 +61,20 @@ async def test_toggle_failure_shows_output(daemon, tmp_path):
     shown = []
     app.notify = lambda msg, **kw: shown.append(msg)
     async with app.run_test() as pilot:
-        await pilot.press("space", "y")
+        await pilot.press("space")
+        await pilot.pause(ConfirmScreen.ARM_DELAY)
+        await pilot.press("y")
         await pilot.pause()
     assert any("Dropbox isn't running!" in m for m in shown)
+
+
+async def test_confirm_ignores_y_sent_with_opening_key(daemon, tmp_path):
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.press("space", "y")
+        await pilot.pause()
+        assert isinstance(app.screen, ConfirmScreen)
+    assert daemon["calls"] == []
 
 
 class OfflineDbx(FakeDbx):
@@ -115,6 +127,7 @@ async def test_toggle_after_folder_vanished(daemon, tmp_path):
     async with app.run_test() as pilot:
         await pilot.press("space")
         app._loaded(crawl(FakeDbx([[folder("/B")]])))  # delta removed /A while the dialog is open
+        await pilot.pause(ConfirmScreen.ARM_DELAY)
         await pilot.press("y")
         await pilot.pause()
     assert daemon["calls"] == [] and any("no longer exists" in m for m in shown)

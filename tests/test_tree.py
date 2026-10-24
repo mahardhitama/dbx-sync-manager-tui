@@ -1,3 +1,5 @@
+import os
+
 from dbx_sync_manager.tree import Tree, crawl, refresh
 from tests.fakes import FakeDbx, deleted, file, folder
 
@@ -62,6 +64,25 @@ def test_cache_roundtrip(tmp_path):
     t.save(tmp_path / "tree.json")
     u = Tree.load(tmp_path / "tree.json")
     assert u.cursor == "c1" and u.size("") == 157
+
+
+def test_cache_private_after_resave(tmp_path):
+    old = os.umask(0o022)
+    try:
+        f = tmp_path / "cache" / "tree.json"
+        build().save(f)
+        f.chmod(0o644)
+        f.with_suffix(".tmp").write_text("")  # leftover tmp from a crash
+        build().save(f)
+    finally:
+        os.umask(old)
+    assert f.stat().st_mode & 0o777 == 0o600 and f.parent.stat().st_mode & 0o777 == 0o700
+
+
+def test_name_control_chars_escaped():
+    t = Tree()
+    t.apply([folder("/a\x1b]52;c;aGk=\x07\tb")])
+    assert t.name(t.children("")[0]) == "a\\x1b]52;c;aGk=\\x07\\tb"
 
 
 def test_load_corrupt_returns_none(tmp_path):
