@@ -1,5 +1,9 @@
 import stat
 
+import pytest
+
+from dbx_sync_manager import auth
+
 from dbx_sync_manager.auth import load_creds, save_creds
 
 
@@ -12,3 +16,18 @@ def test_creds_roundtrip_mode(tmp_path):
 
 def test_load_missing(tmp_path):
     assert load_creds(tmp_path / "none.json") is None
+
+
+def test_login_requests_only_user_scopes(monkeypatch):
+    seen = {}
+
+    class Flow:
+        def __init__(self, app_key, **kw):
+            seen.update(kw)
+            raise SystemExit  # stop before any network call
+
+    monkeypatch.setattr(auth.dropbox, "DropboxOAuth2FlowNoRedirect", Flow)
+    monkeypatch.setenv("DBX_APP_KEY", "k")
+    with pytest.raises(SystemExit):
+        auth.login()
+    assert seen["scope"] == ["files.metadata.read", "account_info.read"]

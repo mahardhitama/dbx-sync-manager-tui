@@ -32,7 +32,9 @@ def make_client(creds):
 
 def login():
     app_key = os.environ.get("DBX_APP_KEY") or input("Dropbox app key: ").strip()
-    flow = dropbox.DropboxOAuth2FlowNoRedirect(app_key, use_pkce=True, token_access_type="offline")
+    # only user scopes: an app that also has team scopes would otherwise get a team-linked token
+    flow = dropbox.DropboxOAuth2FlowNoRedirect(app_key, use_pkce=True, token_access_type="offline",
+                                               scope=["files.metadata.read", "account_info.read"])
     print("1. Open:", flow.start())
     print("2. Click Allow, then copy the code.")
     try:
