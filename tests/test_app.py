@@ -129,3 +129,10 @@ async def test_poll_picks_up_external_exclusion_change(daemon, tmp_path):
         await app.workers.wait_for_complete()
         await pilot.pause()
         assert app.excluded == set()
+
+
+async def test_default_sort_is_size_descending(daemon, tmp_path):
+    app = make_app(tmp_path, FakeDbx([[file("/A/x", 1), file("/B/x", 9), folder("/C")]]))
+    async with app.run_test():
+        ol = app.query_one("#current")
+        assert [ol.get_option_at_index(i).id for i in range(ol.option_count)] == ["/b", "/a", "/c"]

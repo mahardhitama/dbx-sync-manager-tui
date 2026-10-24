@@ -78,7 +78,7 @@ class DbxApp(App):
     def __init__(self, dbx, tree, root, cache_file=CACHE_FILE):
         super().__init__()
         self.dbx, self.folder_tree, self.root, self.cache_file = dbx, tree, root, cache_file
-        self.cwd, self.sort_by_size = "", False
+        self.cwd, self.sort_by_size = "", True
         self.excluded, self.daemon_error, self.dropbox_status = set(), None, ""
         self.loading, self.offline, self.progress = False, False, None
 

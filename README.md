@@ -23,7 +23,7 @@ The first run crawls the whole team space (can take minutes); later runs start f
 | `h` `j` `k` `l` / arrows | navigate |
 | `g` / `G` | top / bottom |
 | `space` | toggle sync (asks first) |
-| `s` | sort by name / size |
+| `s` | sort by size (default) / name |
 | `r` | refresh (changes only) |
 | `R` | full recrawl |
 | `q` | quit |
