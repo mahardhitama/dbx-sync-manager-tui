@@ -7,10 +7,10 @@ Textual TUI that browses every folder in the Dropbox Business team space (with s
 ## Commands
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'   # setup (no uv on this machine)
-.venv/bin/pytest -q                                          # all tests
-.venv/bin/pytest tests/test_tree.py::test_size_rollup -v     # single test
-DBX_APP_KEY=<key> .venv/bin/dbx-sync-manager                 # run (needs a Dropbox app key, see README)
+uv sync                                                  # setup (dev group included)
+uv run pytest -q                                         # all tests
+uv run pytest tests/test_tree.py::test_size_rollup -v    # single test
+DBX_APP_KEY=<key> uv run dbx-sync-manager                # run (needs a Dropbox app key, see README)
 ```
 
 ## Architecture

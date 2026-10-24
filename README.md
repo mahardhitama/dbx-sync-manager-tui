@@ -9,11 +9,11 @@ Icons (need a [Nerd Font](https://www.nerdfonts.com)):  folder and everything in
 1. Create a Dropbox app at https://www.dropbox.com/developers/apps: *Scoped access*, *Full Dropbox*. On the **Permissions** tab enable `files.metadata.read` and `account_info.read`, then submit. Copy the **App key** (no secret needed).
 2. Install:
    ```bash
-   python3 -m venv .venv && .venv/bin/pip install -e .
+   uv sync
    ```
 3. Run (first run asks you to authorize in the browser and paste the code):
    ```bash
-   DBX_APP_KEY=<app key> .venv/bin/dbx-sync-manager
+   DBX_APP_KEY=<app key> uv run dbx-sync-manager
    ```
 
 The first run crawls the whole team space (can take minutes); later runs start from the cache and fetch only changes.
@@ -38,5 +38,5 @@ The first run crawls the whole team space (can take minutes); later runs start f
 ## Tests
 
 ```bash
-.venv/bin/pip install -e '.[dev]' && .venv/bin/pytest
+uv run pytest
 ```
