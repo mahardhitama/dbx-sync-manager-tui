@@ -145,3 +145,11 @@ def test_icon():
     assert icon("/a/x", ex) == ""    # inside excluded parent
     assert icon("/b", ex) == ""      # excluded folder inside
     assert icon("/d", ex) == ""      # fully synced
+
+
+async def test_footer_shows_shortcuts(daemon, tmp_path):
+    app = make_app(tmp_path)
+    async with app.run_test(size=(120, 20)) as pilot:
+        await pilot.pause()
+        shown = {k.description for k in app.query("FooterKey")}
+        assert {"Toggle sync", "Sort", "Refresh", "Recrawl", "Quit"} <= shown

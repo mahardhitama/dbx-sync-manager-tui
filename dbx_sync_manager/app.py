@@ -9,7 +9,7 @@ from textual.app import App
 from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.screen import ModalScreen
-from textual.widgets import OptionList, Static
+from textual.widgets import Footer, OptionList, Static
 from textual.widgets.option_list import Option
 
 from dbx_sync_manager import sync
@@ -99,6 +99,7 @@ class DbxApp(App):
                 yield ol
         yield Static(id="progress")
         yield Static(id="status")
+        yield Footer()
 
     def on_mount(self):
         self.query_one("#current").focus()
