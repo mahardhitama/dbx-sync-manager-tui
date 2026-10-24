@@ -16,7 +16,7 @@ from dbx_sync_manager import sync
 from dbx_sync_manager.tree import CACHE_FILE, crawl, parent, refresh
 
 UNITS = ["B", "KB", "MB", "GB", "TB"]
-STYLES = {"synced": "bold", "excluded": "grey70", "parent_excluded": "grey50 dim"}
+STYLES = {"synced": "bold", "excluded": "bright_black", "parent_excluded": "bright_black dim"}
 # Nerd Font glyphs: nf-fa-circle_o, nf-fa-adjust, nf-fa-circle
 EXCLUDED_ICON, PARTIAL_ICON, SYNCED_ICON = "\uf10c", "\uf042", "\uf111"
 
@@ -85,6 +85,7 @@ class DbxApp(App):
 
     def __init__(self, dbx, tree, root, cache_file=CACHE_FILE):
         super().__init__()
+        self.theme = "ansi-dark"  # use the terminal's own palette and background
         self.dbx, self.folder_tree, self.root, self.cache_file = dbx, tree, root, cache_file
         self.cwd, self.sort_by_size = "", True
         self.excluded, self.daemon_error, self.dropbox_status = set(), None, ""
