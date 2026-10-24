@@ -28,7 +28,10 @@ def parse_exclude_list(output, cwd, root):
 
 
 def _run(*args, cwd=None):
-    p = subprocess.run(["dropbox-cli", *args], capture_output=True, text=True, cwd=cwd)
+    try:
+        p = subprocess.run(["dropbox-cli", *args], capture_output=True, text=True, cwd=cwd, timeout=30)
+    except subprocess.TimeoutExpired:
+        return "dropbox-cli timed out"
     return (p.stdout + p.stderr).strip()
 
 

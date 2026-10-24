@@ -149,15 +149,25 @@ class DbxApp(App):
     def _show_progress(self, on):
         self.query_one("#cols").display = not on
         self.query_one("#progress").display = on
+        if not on:
+            self.query_one("#current").focus()  # hiding #cols dropped focus
 
     @work(thread=True, group="status")
     def poll_status(self):
         s = sync.status()
-        self.call_from_thread(self._set_status, s)
+        try:
+            excluded, error = sync.exclude_list(self.root), None
+        except (RuntimeError, OSError) as e:
+            excluded, error = None, str(e) or "dropbox-cli failed"
+        self.call_from_thread(self._set_status, s, excluded, error)
 
-    def _set_status(self, s):
-        self.dropbox_status = s
-        self._update_status()
+    def _set_status(self, s, excluded, error):
+        self.dropbox_status, self.daemon_error = s, error
+        if excluded is not None and excluded != self.excluded:
+            self.excluded = excluded
+            self.redraw()
+        else:
+            self._update_status()
 
     # --- rendering --------------------------------------------------------
 
@@ -268,6 +278,8 @@ class DbxApp(App):
         def done(ok):
             if not ok:
                 return
+            if path not in self.folder_tree.folders:
+                return self.notify(f"{name} no longer exists in Dropbox", severity="error", markup=False)
             output = sync.set_excluded(self.root, self._path_display(path), exclude)
             self._reload_excluded()
             if sync.state(path, self.excluded) == before:

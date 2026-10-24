@@ -45,3 +45,11 @@ def test_set_excluded_command(monkeypatch):
 def test_parse_daemon_error_raises():
     with pytest.raises(RuntimeError, match="Dropbox isn't running!"):
         parse_exclude_list("Dropbox isn't running!\n", ROOT, ROOT)
+
+
+def test_run_timeout_returns_message(monkeypatch):
+    def hang(args, **kw):
+        assert kw["timeout"]
+        raise subprocess.TimeoutExpired(args, kw["timeout"])
+    monkeypatch.setattr(subprocess, "run", hang)
+    assert "timed out" in set_excluded(ROOT, "/A", True)

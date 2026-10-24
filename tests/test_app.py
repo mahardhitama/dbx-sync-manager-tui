@@ -1,3 +1,4 @@
+import threading
 from pathlib import Path
 
 import pytest
@@ -77,3 +78,54 @@ async def test_offline_keeps_cache(daemon, tmp_path):
         await pilot.pause()
         assert "/a" in app.folder_tree.folders
         assert "offline" in str(app.query_one("#status").content)
+
+
+class GatedDbx(FakeDbx):
+    """Crawl blocks until `gate` is set, so the progress screen is really shown."""
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.gate = threading.Event()
+
+    def files_list_folder(self, path, recursive=False):
+        self.gate.wait(5)
+        return super().files_list_folder(path, recursive)
+
+
+async def test_focus_survives_recrawl(daemon, tmp_path):
+    dbx = GatedDbx([[folder("/A"), folder("/B")]])
+    dbx.gate.set()
+    app = make_app(tmp_path, dbx)
+    dbx.gate.clear()
+    async with app.run_test() as pilot:
+        await app.workers.wait_for_complete()
+        await pilot.press("R")
+        await pilot.pause()
+        dbx.gate.set()
+        await app.workers.wait_for_complete()
+        await pilot.pause()
+        await pilot.press("down")
+        assert app.query_one("#current").highlighted == 1
+
+
+async def test_toggle_after_folder_vanished(daemon, tmp_path):
+    app = make_app(tmp_path)
+    shown = []
+    app.notify = lambda msg, **kw: shown.append(msg)
+    async with app.run_test() as pilot:
+        await pilot.press("space")
+        app._loaded(crawl(FakeDbx([[folder("/B")]])))  # delta removed /A while the dialog is open
+        await pilot.press("y")
+        await pilot.pause()
+    assert daemon["calls"] == [] and any("no longer exists" in m for m in shown)
+
+
+async def test_poll_picks_up_external_exclusion_change(daemon, tmp_path):
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await app.workers.wait_for_complete()
+        daemon["excluded"].clear()
+        app.poll_status()
+        await app.workers.wait_for_complete()
+        await pilot.pause()
+        assert app.excluded == set()
