@@ -1,8 +1,10 @@
 import json
 import os
+import time
 from pathlib import Path
 
-from dropbox.files import DeletedMetadata, FileMetadata, FolderMetadata
+from dropbox.exceptions import ApiError
+from dropbox.files import DeletedMetadata, FileMetadata, FolderMetadata, ListFolderContinueError
 
 CACHE_FILE = Path.home() / ".cache/dbx-sync-manager/tree.json"
 
@@ -69,3 +71,32 @@ class Tree:
             return cls(d["cursor"], d["crawled_at"], d["folders"])
         except (OSError, ValueError, KeyError, TypeError):
             return None
+
+
+def _drain(dbx, tree, res, on_progress, seen=0):
+    while True:
+        tree.apply(res.entries)
+        seen += len(res.entries)
+        on_progress(seen)
+        tree.cursor = res.cursor
+        if not res.has_more:
+            return tree
+        res = dbx.files_list_folder_continue(res.cursor)
+
+
+def crawl(dbx, on_progress=lambda n: None):
+    tree = _drain(dbx, Tree(), dbx.files_list_folder("", recursive=True), on_progress)
+    tree.crawled_at = time.time()
+    return tree
+
+
+def refresh(dbx, tree, on_progress=lambda n: None):
+    try:
+        res = dbx.files_list_folder_continue(tree.cursor)
+    except ApiError as e:
+        if isinstance(e.error, ListFolderContinueError) and e.error.is_reset():
+            return crawl(dbx, on_progress)
+        raise
+    _drain(dbx, tree, res, on_progress)
+    tree.crawled_at = time.time()
+    return tree

@@ -1,5 +1,5 @@
-from dbx_sync_manager.tree import Tree
-from tests.fakes import deleted, file, folder
+from dbx_sync_manager.tree import Tree, crawl, refresh
+from tests.fakes import FakeDbx, deleted, file, folder
 
 
 def build():
@@ -74,3 +74,22 @@ def test_load_without_root_entry(tmp_path):
     (tmp_path / "tree.json").write_text('{"cursor": "c", "crawled_at": 0, "folders": {"/a": {"name": "A", "files": {}}}}')
     t = Tree.load(tmp_path / "tree.json")
     assert t.size("") == 0 and t.children("") == ["/a"]
+
+
+def test_crawl_pages_and_progress():
+    seen = []
+    t = crawl(FakeDbx([[folder("/A")], [file("/A/x", 3)]]), seen.append)
+    assert t.size("/a") == 3 and seen == [1, 2] and t.cursor
+
+
+def test_refresh_applies_delta():
+    dbx = FakeDbx([[folder("/A"), file("/A/x", 3)]], deltas=[file("/A/y", 4)])
+    t = crawl(dbx)
+    assert refresh(dbx, t).size("/a") == 7
+
+
+def test_refresh_reset_recrawls():
+    dbx = FakeDbx([[folder("/A")]], reset=True)
+    t = crawl(dbx)
+    t.folders["/stale"] = {"name": "stale", "files": {}}
+    assert "/stale" not in refresh(dbx, t).folders
