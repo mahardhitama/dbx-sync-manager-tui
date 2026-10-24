@@ -53,3 +53,12 @@ def test_run_timeout_returns_message(monkeypatch):
         raise subprocess.TimeoutExpired(args, kw["timeout"])
     monkeypatch.setattr(subprocess, "run", hang)
     assert "timed out" in set_excluded(ROOT, "/A", True)
+
+
+def test_has_excluded_inside_any_depth():
+    from dbx_sync_manager.sync import has_excluded_inside
+    ex = {"/projects/2025/maps"}
+    assert has_excluded_inside("/projects", ex)
+    assert has_excluded_inside("", ex)
+    assert not has_excluded_inside("/projects/2025/maps", ex)
+    assert not has_excluded_inside("/proj", ex)

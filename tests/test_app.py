@@ -136,3 +136,12 @@ async def test_default_sort_is_size_descending(daemon, tmp_path):
     async with app.run_test():
         ol = app.query_one("#current")
         assert [ol.get_option_at_index(i).id for i in range(ol.option_count)] == ["/b", "/a", "/c"]
+
+
+def test_icon():
+    from dbx_sync_manager.app import icon
+    ex = {"/a", "/b/c"}
+    assert icon("/a", ex) == ""      # excluded
+    assert icon("/a/x", ex) == ""    # inside excluded parent
+    assert icon("/b", ex) == ""      # excluded folder inside
+    assert icon("/d", ex) == ""      # fully synced

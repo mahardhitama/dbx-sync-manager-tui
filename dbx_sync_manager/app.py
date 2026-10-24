@@ -17,6 +17,8 @@ from dbx_sync_manager.tree import CACHE_FILE, crawl, parent, refresh
 
 UNITS = ["B", "KB", "MB", "GB", "TB"]
 STYLES = {"synced": "bold", "excluded": "grey70", "parent_excluded": "grey50 dim"}
+# Nerd Font glyphs: nf-fa-circle_o, nf-fa-adjust, nf-fa-circle
+EXCLUDED_ICON, PARTIAL_ICON, SYNCED_ICON = "\uf10c", "\uf042", "\uf111"
 
 
 def human(n):
@@ -34,6 +36,12 @@ def age(seconds):
         if seconds >= span:
             return f"{int(seconds // span)}{unit}"
     return f"{int(seconds)}s"
+
+
+def icon(path, excluded):
+    if sync.state(path, excluded) != "synced":
+        return EXCLUDED_ICON
+    return PARTIAL_ICON if sync.has_excluded_inside(path, excluded) else SYNCED_ICON
 
 
 def synced_size(tree, excluded):
@@ -188,7 +196,7 @@ class DbxApp(App):
         row = Table.grid(expand=True)
         row.add_column(ratio=1, no_wrap=True, overflow="ellipsis")
         row.add_column(justify="right")
-        row.add_row(Text(self.folder_tree.name(path), style=style), Text(human(self.folder_tree.size(path)), style=style))
+        row.add_row(Text(f"{icon(path, self.excluded)} {self.folder_tree.name(path)}", style=style), Text(human(self.folder_tree.size(path)), style=style))
         return Option(row, id=path)
 
     def _fill(self, ol, paths, select=None):

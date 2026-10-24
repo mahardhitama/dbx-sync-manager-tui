@@ -2,6 +2,8 @@
 
 TUI for Dropbox selective sync. Lists every folder in the team space with its size; bold = synced, gray = excluded. Toggles exclusion via `dropbox-cli exclude`.
 
+Icons (need a [Nerd Font](https://www.nerdfonts.com)):  folder and everything inside synced,  synced but has an excluded folder inside,  excluded (or inside an excluded folder).
+
 ## Setup
 
 1. Create a Dropbox app at https://www.dropbox.com/developers/apps: *Scoped access*, *Full Dropbox*. On the **Permissions** tab enable `files.metadata.read` and `account_info.read`, then submit. Copy the **App key** (no secret needed).

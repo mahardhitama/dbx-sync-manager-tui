@@ -49,6 +49,10 @@ def state(path, excluded):
     return "synced"
 
 
+def has_excluded_inside(path, excluded):
+    return any(e.startswith(path + "/") for e in excluded)
+
+
 def set_excluded(root, path_display, exclude):
     # dropbox-cli reports errors on stdout with exit 0; callers verify via exclude_list()
     return _run("exclude", "add" if exclude else "remove", str(root) + path_display)
