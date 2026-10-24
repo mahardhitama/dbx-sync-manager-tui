@@ -1,8 +1,10 @@
+import asyncio
 import threading
 from pathlib import Path
 
 import pytest
 import requests
+from dropbox.exceptions import AuthError
 
 from dbx_sync_manager import sync
 from dbx_sync_manager.app import ConfirmScreen, DbxApp, human, synced_size
@@ -90,6 +92,17 @@ async def test_offline_keeps_cache(daemon, tmp_path):
         await pilot.pause()
         assert "/a" in app.folder_tree.folders
         assert "offline" in str(app.query_one("#status").content)
+
+
+class RevokedDbx(FakeDbx):
+    def files_list_folder_continue(self, cursor):
+        raise AuthError("req", None)
+
+
+async def test_rejected_token_exits_to_relogin(daemon, tmp_path):
+    t = crawl(FakeDbx([[folder("/A")]]))
+    app = DbxApp(RevokedDbx([[folder("/A")]]), t, Path("/r"), tmp_path / "t.json")
+    assert await asyncio.wait_for(app.run_async(headless=True), 5) == "relogin"
 
 
 class GatedDbx(FakeDbx):

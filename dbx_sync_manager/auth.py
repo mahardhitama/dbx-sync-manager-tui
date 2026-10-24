@@ -5,7 +5,7 @@ from pathlib import Path
 import dropbox
 import requests
 from dropbox.common import PathRoot
-from dropbox.exceptions import AuthError, DropboxException
+from dropbox.exceptions import DropboxException
 
 TOKEN_FILE = Path.home() / ".config/dbx-sync-manager/token.json"
 
@@ -47,14 +47,3 @@ def login():
     creds = {"app_key": app_key, "refresh_token": result.refresh_token, "root_ns": root_ns}
     save_creds(creds)
     return creds
-
-
-def get_client():
-    dbx = make_client(load_creds() or login())
-    try:
-        dbx.users_get_current_account()
-    except AuthError:
-        dbx = make_client(login())
-    except requests.exceptions.ConnectionError:
-        pass  # offline: the app browses the cache
-    return dbx

@@ -2,6 +2,7 @@ import copy
 import time
 
 import requests
+from dropbox.exceptions import AuthError
 from rich.table import Table
 from rich.text import Text
 from textual import on, work
@@ -108,7 +109,6 @@ class DbxApp(App):
 
     def on_mount(self):
         self.query_one("#current").focus()
-        self._reload_excluded()
         self.action_load(full=self.folder_tree is None)
         self.set_interval(5, self.poll_status)
         self.poll_status()
@@ -141,6 +141,8 @@ class DbxApp(App):
             tree.save(self.cache_file)
         except requests.exceptions.ConnectionError:
             self.call_from_thread(self._loaded, None, offline=True)
+        except AuthError:
+            self.call_from_thread(self.exit, "relogin")
         except Exception as e:
             self.call_from_thread(self._loaded, None, error=str(e))
         else:

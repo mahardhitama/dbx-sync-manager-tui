@@ -26,6 +26,7 @@ Two independent data sources, joined only in `app.py`:
 
 `app.py` details that aren't obvious:
 - Crawl and refresh run in thread workers on a `copy.deepcopy` of the tree, then swap it in via `call_from_thread`. Never mutate `folder_tree` from a worker.
+- Startup makes no network call; the token is first checked by the background refresh. On `AuthError`, the app exits with `"relogin"` and `main()` reruns `login()` before restarting it.
 - `r`/`R` are ignored while a load runs (a `loading` flag, not exclusive workers).
 - The attribute is `folder_tree`, not `tree`: `App.tree` is a Textual property. Check new private names against `App` attributes (`_display` already collided).
 - `poll_status` re-reads `dropbox-cli status` and the exclude list every 5 s.
