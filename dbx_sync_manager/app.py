@@ -17,7 +17,7 @@ from dbx_sync_manager import sync
 from dbx_sync_manager.tree import CACHE_FILE, crawl, parent, refresh
 
 UNITS = ["B", "KB", "MB", "GB", "TB"]
-STYLES = {"synced": "bold", "excluded": "bright_black", "parent_excluded": "bright_black dim"}
+STYLES = {"synced": "bold blue", "excluded": "", "parent_excluded": ""}  # blue = ansi-dark theme's primary
 # Nerd Font glyphs: nf-fa-circle_o, nf-fa-adjust, nf-fa-circle
 EXCLUDED_ICON, PARTIAL_ICON, SYNCED_ICON = "\uf10c", "\uf042", "\uf111"
 
