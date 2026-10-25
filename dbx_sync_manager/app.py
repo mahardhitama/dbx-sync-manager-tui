@@ -11,7 +11,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.screen import ModalScreen
 from textual.widgets import Footer, OptionList, Static
-from textual.widgets.option_list import Option
+from textual.widgets.option_list import Option, OptionDoesNotExist
 
 from dbx_sync_manager import sync
 from dbx_sync_manager.tree import CACHE_FILE, crawl, parent, refresh
@@ -73,6 +73,8 @@ class DbxApp(App):
     #cols { height: 1fr; }
     #cols OptionList { width: 1fr; height: 100%; border: round ansi_bright_black; }
     #cols #current { border: round $primary; }
+    /* the cursor row reverses its own colors instead (see _mark_cursor), so blue rows stay readable */
+    #current > .option-list--option-highlighted { color: ansi_default; background: ansi_default; text-style: none; }
     #current, #preview { width: 2fr; }
     #progress { display: none; height: 1fr; content-align: center middle; }
     #status { height: 1; padding: 0 1; background: $panel; }
@@ -95,6 +97,7 @@ class DbxApp(App):
         self.cwd, self.sort_by_size = "", True
         self.excluded, self.daemon_error, self.dropbox_status = set(), None, ""
         self.loading, self.offline, self.progress = False, False, None
+        self.cursor_path = None
 
     def compose(self):
         yield Static(id="path")
@@ -199,13 +202,16 @@ class DbxApp(App):
             return sorted(paths, key=self.folder_tree.size, reverse=True)
         return sorted(paths, key=lambda p: self.folder_tree.name(p).casefold())
 
-    def _option(self, path):
-        style = STYLES[sync.state(path, self.excluded)]
+    def _row(self, path, cursor=False):
+        style = STYLES[sync.state(path, self.excluded)] + (" reverse" if cursor else "")
         row = Table.grid(expand=True)
         row.add_column(ratio=1, no_wrap=True, overflow="ellipsis")
         row.add_column(justify="right")
         row.add_row(Text(f"{icon(path, self.excluded)} {self.folder_tree.name(path)}", style=style), Text(human(self.folder_tree.size(path)), style=style))
-        return Option(row, id=path)
+        return row
+
+    def _option(self, path):
+        return Option(self._row(path), id=path)
 
     def _fill(self, ol, paths, select=None):
         ol.set_options([self._option(p) for p in self._sorted(paths)])
@@ -230,6 +236,18 @@ class DbxApp(App):
             self._preview()
             self.query_one("#path", Static).update(Text(self.root.name + (self._path_display(self.cwd) if self.cwd else "")))
         self._update_status()
+
+    @on(OptionList.OptionHighlighted, "#current")
+    def _mark_cursor(self, event):
+        # Textual's CSS cursor style can't reverse, so the row's own Rich style does it
+        ol = event.option_list
+        try:
+            ol.get_option(self.cursor_path)
+            ol.replace_option_prompt(self.cursor_path, self._row(self.cursor_path))
+        except OptionDoesNotExist:  # previous cursor row left the list
+            pass
+        self.cursor_path = event.option.id
+        ol.replace_option_prompt(self.cursor_path, self._row(self.cursor_path, cursor=True))
 
     @on(OptionList.OptionHighlighted, "#current")
     def _preview(self):
