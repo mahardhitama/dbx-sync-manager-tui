@@ -92,7 +92,7 @@ dbx_sync_manager/
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-- Three Miller columns: parent, current, preview of the selected folder's children. Folders only, each with a human-readable size, sorted by name by default.
+- Miller columns: one per level from the root down to the current folder, then a preview of the selected folder's children. Each column is as wide as its widest row; ancestor columns that don't fit the terminal are hidden, leftmost first. Folders only, each with a human-readable size, sorted by name by default.
 - Styles:
   - `synced`: bold.
   - `excluded`: light gray.
