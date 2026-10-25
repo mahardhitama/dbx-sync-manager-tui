@@ -9,6 +9,7 @@ from textual import on, work
 from textual.app import App
 from textual.binding import Binding
 from textual.containers import Horizontal
+from textual.geometry import Size
 from textual.screen import ModalScreen
 from textual.widgets import Footer, OptionList, Static
 from textual.widgets.option_list import Option, OptionDoesNotExist
@@ -67,15 +68,21 @@ class ConfirmScreen(ModalScreen[bool]):
             self.dismiss(ok)
 
 
+class Columns(Horizontal):
+    def on_resize(self):  # App swallows its own Resize, so the container reports it
+        if self.app.folder_tree is not None:
+            self.app._fit_columns()
+
+
 class DbxApp(App):
     CSS = """
     #path { height: 1; padding: 0 1; background: $panel; }
     #cols { height: 1fr; }
-    #cols OptionList { width: 1fr; height: 100%; border: round ansi_bright_black; }
+    /* each column fits its widest row; _fit_columns hides ancestors that don't fit */
+    #cols OptionList { width: auto; max-width: 33%; height: 100%; border: round ansi_bright_black; }
     #cols #current { border: round $primary; }
     /* the cursor row reverses its own colors instead (see _mark_cursor), so blue rows stay readable */
     #current > .option-list--option-highlighted { color: ansi_default; background: ansi_default; text-style: none; }
-    #current, #preview { width: 2fr; }
     #progress { display: none; height: 1fr; content-align: center middle; }
     #status { height: 1; padding: 0 1; background: $panel; }
     ConfirmScreen { align: center middle; }
@@ -101,11 +108,12 @@ class DbxApp(App):
 
     def compose(self):
         yield Static(id="path")
-        with Horizontal(id="cols"):
-            for name in ("parent", "current", "preview"):
-                ol = OptionList(id=name)
-                ol.can_focus = name == "current"
-                yield ol
+        with Columns(id="cols"):
+            # ancestor columns are mounted before #current by _fill_ancestors
+            yield OptionList(id="current")
+            preview = OptionList(id="preview")
+            preview.can_focus = False
+            yield preview
         yield Static(id="progress")
         yield Static(id="status")
         yield Footer()
@@ -204,7 +212,7 @@ class DbxApp(App):
 
     def _row(self, path, cursor=False):
         style = STYLES[sync.state(path, self.excluded)] + (" reverse" if cursor else "")
-        row = Table.grid(expand=True)
+        row = Table.grid(expand=True, padding=(0, 0, 0, 2), pad_edge=False)
         row.add_column(ratio=1, no_wrap=True, overflow="ellipsis")
         row.add_column(justify="right")
         row.add_row(Text(f"{icon(path, self.excluded)} {self.folder_tree.name(path)}", style=style), Text(human(self.folder_tree.size(path)), style=style))
@@ -228,14 +236,43 @@ class DbxApp(App):
                 self.cwd = parent(self.cwd)
             select = select or self._selected()
             self._fill(self.query_one("#current", OptionList), self.folder_tree.children(self.cwd), select)
-            parent_ol = self.query_one("#parent", OptionList)
-            if self.cwd:
-                self._fill(parent_ol, self.folder_tree.children(parent(self.cwd)), self.cwd)
-            else:
-                parent_ol.clear_options()
+            self._fill_ancestors()
             self._preview()
+            self._fit_columns()
             self.query_one("#path", Static).update(Text(self.root.name + (self._path_display(self.cwd) if self.cwd else "")))
         self._update_status()
+
+    def _fill_ancestors(self):
+        # one column per level above cwd, root first; each highlights the next level down
+        chain, p = [], self.cwd
+        while p:
+            chain.insert(0, p)
+            p = parent(p)
+        cols = list(self.query(".ancestor").results(OptionList))
+        for ol in cols[len(chain):]:
+            ol.remove()
+        while len(cols) < len(chain):
+            ol = OptionList(classes="ancestor")
+            ol.can_focus = False
+            self.query_one("#cols").mount(ol, before="#current")
+            cols.append(ol)
+        for ol, path in zip(cols, chain):
+            self._fill(ol, self.folder_tree.children(parent(path)), path)
+
+    def _column_width(self, ol, size):
+        width = ol.get_content_width(size, size) + ol.styles.gutter.width
+        if ol.option_count > size.height - ol.styles.gutter.height:
+            width += ol.styles.scrollbar_size_vertical
+        return min(width, int(ol.styles.max_width.resolve(size, size)))
+
+    def _fit_columns(self):
+        # show as many ancestor columns as fit, dropping the leftmost first
+        cols = self.query_one("#cols")
+        size = Size(self.size.width, cols.size.height or self.size.height)
+        used = sum(self._column_width(self.query_one(f"#{n}", OptionList), size) for n in ("current", "preview"))
+        for ol in reversed(list(self.query(".ancestor").results(OptionList))):
+            used += self._column_width(ol, size)
+            ol.display = used <= size.width
 
     @on(OptionList.OptionHighlighted, "#current")
     def _mark_cursor(self, event):

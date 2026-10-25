@@ -179,3 +179,36 @@ async def test_footer_shows_shortcuts(daemon, tmp_path):
         await pilot.pause()
         shown = {k.description for k in app.query("FooterKey")}
         assert {"Toggle sync", "Sort", "Refresh", "Recrawl", "Quit"} <= shown
+
+
+async def test_columns_fit_widest_name(daemon, tmp_path):
+    long = "a-much-longer-folder-name"
+    app = make_app(tmp_path, FakeDbx([[file("/A/B/x", 1), file(f"/{long}/x", 1)]]))
+    async with app.run_test(size=(200, 20)) as pilot:
+        await pilot.pause()
+        cur, pre = app.query_one("#current"), app.query_one("#preview")
+        # border 2 + padding 2 + "icon name" + gap 2 + "1 B" (+ scrollbar, if any)
+        assert len(long) + 11 <= cur.outer_size.width <= len(long) + 13
+        assert pre.outer_size.width < cur.outer_size.width
+        assert cur.region.right <= 200
+
+
+async def test_columns_show_every_level_that_fits(daemon, tmp_path):
+    app = make_app(tmp_path, FakeDbx([[file("/A/B/C/D/E/x", 1)]]))
+    async with app.run_test(size=(200, 20)) as pilot:
+        for _ in range(4):
+            await pilot.press("l")
+        await pilot.pause()
+        shown = lambda: [ol.get_option_at_index(0).id for ol in app.query(".ancestor") if ol.display]
+        assert shown() == ["/a", "/a/b", "/a/b/c", "/a/b/c/d"]
+        assert app.query_one("#current").get_option_at_index(0).id == "/a/b/c/d/e"
+        await pilot.resize_terminal(30, 20)  # columns are 12 wide, preview 4: room for one ancestor
+        await pilot.pause()
+        assert shown() == ["/a/b/c/d"]
+        assert all(ol.region.right <= 30 for ol in app.query("#cols OptionList") if ol.display)
+        await pilot.resize_terminal(200, 20)
+        await pilot.pause()
+        assert shown() == ["/a", "/a/b", "/a/b/c", "/a/b/c/d"]
+        await pilot.press("h", "h")
+        await pilot.pause()
+        assert shown() == ["/a", "/a/b"]
